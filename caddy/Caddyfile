@@ -1,0 +1,27 @@
+# Open Web UI reverse proxy
+localhost:3333 {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# SearXNG reverse proxy
+localhost:5555 {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Ollama reverse proxy
+localhost:11434 {
+	reverse_proxy 127.0.0.1:11434
+}
+
+# For Prod (commented out for now)
+# open-webui.example.com {
+#    reverse_proxy open-webui:8080
+# }
+#
+# ollama.example.com {
+#    reverse_proxy ollama:11434
+# }
+#
+# searxng.example.com {
+#    reverse_proxy searxng:8080
+# }

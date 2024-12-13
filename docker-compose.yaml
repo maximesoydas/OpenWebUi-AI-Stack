@@ -1,0 +1,76 @@
+version: "3.8" # Specify the Compose file format version. Version 3.8 ensures compatibility with Docker Compose v2.
+
+services: # Define all the services to be orchestrated by Docker Compose.
+  open-webui: # Define the Open Web UI service.
+    image: ghcr.io/open-webui/open-webui:main # Use the main image from the GitHub container registry.
+    container_name: open-webui # Assign a specific name to the container.
+    ports: # Map the container's internal port 8080 to the host's port 3333.
+      - "3333:8080"
+    environment: # Define environment variables for Open Web UI.
+      OLLAMA_BASE_URL: "http://ollama:11434" # Point Open Web UI to the Ollama service.
+      SEARXNG_BASE_URL: "http://searxng:8080" # Point Open Web UI to the SearXNG service.
+    volumes: # Persist data in a named volume.
+      - open-webui-data:/app/backend/data
+    depends_on: # Ensure Open Web UI starts after SearXNG and Ollama.
+      - searxng
+      - ollama
+    restart: always # Automatically restart the container if it stops or crashes.
+    # NOTE: Docker Compose v2 does not fully support `--gpus` yet; use `deploy` instead.
+    deploy: # Deployment settings for resource reservations.
+      resources:
+        reservations:
+          devices: # Reserve all GPUs for this service.
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ollama: # Define the Ollama service.
+    image: ollama/ollama:latest # Use the latest Ollama image.
+    container_name: ollama # Assign a specific name to the container.
+    ports: # Map the container's internal port 11434 to the host's port 11434.
+      - "11434:11434"
+    command: serve # Run the "serve" command as the container's entry point.
+    volumes: # Persist data in a named volume for Ollama.
+      - ollama-data:/root/.ollama
+    restart: always # Automatically restart the container if it stops or crashes.
+
+  searxng: # Define the SearXNG service.
+    image: searxng/searxng:latest # Use the latest SearXNG image.
+    container_name: searxng # Assign a specific name to the container.
+    ports: # Map the container's internal port 8080 to the host's port 5555.
+      - "5555:8080"
+    environment: # Define environment variables for SearXNG.
+      SEARXNG_SETTINGS_PATH: "/etc/searxng/settings.yml" # Path to the settings configuration file.
+    volumes: # Mount settings and other configuration files into the container.
+      - ./searxng/settings.yml:/etc/searxng/settings.yml # Mount a specific configuration file.
+      - ./searxng:/etc/searxng # Alternatively, mount the entire directory for flexibility.
+    restart: always # Automatically restart the container if it stops or crashes.
+
+  redis: # Define the Redis service.
+    image: redis:alpine # Use the lightweight Alpine Redis image.
+    container_name: redis # Assign a specific name to the container.
+    restart: always # Automatically restart the container if it stops or crashes.
+    ports: # Map the container's internal port 6379 to the host's port 6379.
+      - "6379:6379"
+
+  caddy: # Define the Caddy service (reverse proxy).
+    image: caddy:latest # Use the latest Caddy image.
+    container_name: caddy # Assign a specific name to the container.
+    ports: # Expose ports for HTTP (80) and HTTPS (443).
+      - "80:80"
+      - "443:443"
+    volumes: # Mount configuration and data volumes.
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile # Mount the Caddyfile for configuration.
+      - caddy_data:/data # Persist Caddy's runtime data.
+      - caddy_config:/config # Persist Caddy's configuration data.
+    depends_on: # Ensure Caddy starts after dependent services.
+      - open-webui
+      - ollama
+      - searxng
+    restart: always # Automatically restart the container if it stops or crashes.
+
+volumes: # Define named volumes for persistent storage.
+  open-webui-data: # Volume for Open Web UI data.
+  ollama-data: # Volume for Ollama data.
+  caddy_data: # Volume for Caddy runtime data.
+  caddy_config: # Volume for Caddy configuration data.
